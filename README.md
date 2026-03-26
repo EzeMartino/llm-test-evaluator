@@ -72,3 +72,8 @@ The evaluator returns:
 - Validating AI-generated content against expected outputs
 - Assisting QA processes for AI-powered systems
 - Benchmarking prompt or model performance
+
+
+## Current Status
+V1 uses a mock evaluator to validate API structure and response format.
+The next step is replacing the mock with a real LLM backend.

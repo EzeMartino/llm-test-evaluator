@@ -39,7 +39,7 @@ VALID_LABELS = {"correct", "partially_correct", "incorrect"}
 #    return response.choices[0].message.content
 
 def call_llm_mock(system_prompt, user_prompt):
-    if "Berlin" in user_prompt:
+    if "Paris" not in user_prompt:
         return """
         {
             "label": "incorrect",
