@@ -30,23 +30,6 @@ SYSTEM_PROMPT = """
     
 VALID_LABELS = {"correct", "partially_correct", "incorrect"}
 
-def call_llm_mock(system_prompt, user_prompt):
-    if "Paris" not in user_prompt:
-        return """
-        {
-            "label": "incorrect",
-            "score": 0.0,
-            "explanation": "Wrong capital"
-        }
-        """
-    return """
-    {
-        "label": "correct",
-        "score": 1.0,
-        "explanation": "Mock response"
-    }
-    """
-
 def build_prompt(prompt, expected, actual):
     return f"""
         Prompt:
@@ -86,8 +69,11 @@ def validate_output(output):
     
     return output
 
-def evaluate(prompt: str, expected: str, actual: str) -> dict:
-    if not USE_LLM:
+def evaluate(prompt: str, expected: str, actual: str, use_LLM: bool | None = None) -> dict:
+    if use_LLM is None:
+        use_LLM = USE_LLM
+
+    if not use_LLM:
         return rule_based_evaluate(expected, actual)
     user_prompt = build_prompt(prompt, expected, actual)
     try:
@@ -95,7 +81,7 @@ def evaluate(prompt: str, expected: str, actual: str) -> dict:
         parsed = parse_response(raw_output)
         validated_output = validate_output(parsed)
         return validated_output
-    except Exception as e:
+    except Exception:
         # Automatic fallback if LLM fails
         fallback = rule_based_evaluate(expected, actual)
         fallback["explanation"] += f" (Fallback used because the LLM evaluator was unavailable)"
