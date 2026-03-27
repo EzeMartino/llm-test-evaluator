@@ -29,6 +29,39 @@ Out of scope for V1:
 - long multi-turn conversations
 - production-scale monitoring
 
+## Setup
+### Clone Repo
+### Create virtual environment
+Windows:
+```bash
+python -m venv .venv
+source .venv\\Scripts\\activate
+```
+Linux/Mac:
+```bash
+source .venv/bin/activate
+```
+### Install dependencies
+```bash
+pip install -r requirements.txt
+```
+### Run API:
+```bash
+uvicorn src.api.main:app --reload
+```
+### Run tests
+```bash
+pytest
+```
+### Set OpenAI API key
+Windows PowerShell:
+```bash
+$env:OPENAI_API_KEY="your_api_key"
+```
+Linux/Mac:
+```bash
+export OPENAI_API_KEY="your_api_key"
+```
 
 ## API Contract
 
@@ -67,6 +100,16 @@ The evaluator returns:
 ```
 
 
+## Evaluation Modes
+
+The evaluator supports two modes:
+
+- **LLM mode**: uses an OpenAI model for semantic evaluation
+- **Rule-based mode**: deterministic fallback for reliability and testing
+
+If the LLM is unavailable or disabled, the evaluator automatically falls back to the rule-based mode.
+
+
 ## Use cases
 - Evaluating LLM responses in automated testing pipelines
 - Validating AI-generated content against expected outputs
@@ -75,5 +118,8 @@ The evaluator returns:
 
 
 ## Current Status
-V1 uses a mock evaluator to validate API structure and response format.
-The next step is replacing the mock with a real LLM backend.
+Version 1 supports:
+- structured evaluation via API
+- LLM-based scoring
+- deterministic fallback mode
+- input validation with FastAPI/Pydantic
