@@ -1,37 +1,20 @@
 # from openai import OpenAI
 import json
 import re
+from textwrap import dedent
+
+from pydantic import ValidationError
 from src.evaluator.providers import call_openai
 from src.evaluator.rule_based import rule_based_evaluate
-from src.config import USE_LLM
+from src.config import USE_LLM, SYSTEM_PROMPT
+from src.schemas import EvaluationResponse
 
-SYSTEM_PROMPT = """
-    You are an evaluator for LLM-generated answers.
-
-    Your task is to compare an actual answer against an expected answer given a prompt.
-
-    You must classify the answer as one of:
-    - correct
-    - partially_correct
-    - incorrect
-
-    Definitions:
-    - correct: The answer matches the expected answer in all essential information.
-    - partially_correct: The answer is incomplete or contains minor inaccuracies.
-    - incorrect: The answer is wrong or contradicts the expected answer.
-
-    You must return a JSON object with:
-    - label: one of ["correct", "partially_correct", "incorrect"]
-    - score: a float between 0 and 1
-    - explanation: a short explanation
-
-    Return ONLY valid JSON. No extra text.
-    """
     
-VALID_LABELS = {"correct", "partially_correct", "incorrect"}
+# VALID_LABELS = {"correct", "partially_correct", "incorrect"}
 
 def build_prompt(prompt, expected, actual):
-    return f"""
+    return dedent(
+        f"""
         Prompt:
         {prompt}
 
@@ -41,6 +24,7 @@ def build_prompt(prompt, expected, actual):
         Actual Answer:
         {actual}
     """
+    ).strip()
     
 def parse_response(text: str) -> dict:
     try:
@@ -52,40 +36,42 @@ def parse_response(text: str) -> dict:
         raise ValueError(f"Invalid JSON response: {text}")
     
 def validate_output(output):
-    if "label" not in output or "score" not in output or "explanation" not in output:
-        raise ValueError("Missing required fields")
-    
-    if output["label"] not in VALID_LABELS:
-        raise ValueError("Invalid label")
-    
-    if not isinstance(output["score"], (int, float)):
-        raise ValueError("Score must be numeric")
+    try:
+        return EvaluationResponse.model_validate(output)
+    except ValidationError as exc:
+        raise ValueError("Invalid evaluator output") from exc
 
-    if not (0 <= output["score"] <= 1):
-        raise ValueError("Invalid score")
+def evaluate(
+    prompt: str, 
+    expected: str, 
+    actual: str, 
+    use_LLM: bool | None = None
+    ) -> EvaluationResponse:
     
-    if not isinstance(output["explanation"], str):
-        raise ValueError("Explanation must be string")
-    
-    return output
+    use_llm = USE_LLM if use_LLM is None else use_LLM
 
-def evaluate(prompt: str, expected: str, actual: str, use_LLM: bool | None = None) -> dict:
-    if use_LLM is None:
-        use_LLM = USE_LLM
-
-    if not use_LLM:
+    if not use_llm:
         return rule_based_evaluate(expected, actual)
+    
     user_prompt = build_prompt(prompt, expected, actual)
+    
     try:
         raw_output = call_openai(SYSTEM_PROMPT, user_prompt)
         parsed = parse_response(raw_output)
-        validated_output = validate_output(parsed)
-        return validated_output
+        
+        return validate_output(parsed)
+    
     except Exception:
         # Automatic fallback if LLM fails
         fallback = rule_based_evaluate(expected, actual)
-        fallback["explanation"] += f" (Fallback used because the LLM evaluator was unavailable)"
-        return fallback
+        return fallback.model_copy(
+            update={
+                "explanation": (
+                    f"{fallback.explanation} "
+                    "(Fallback used because the LLM evaluator was unavailable)"
+                )
+            }
+        )
 
 if __name__ == "__main__":
     result = evaluate(

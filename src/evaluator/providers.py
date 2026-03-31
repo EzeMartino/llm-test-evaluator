@@ -8,7 +8,13 @@ def get_openai_client() -> OpenAI:
     if not api_key:
         raise ValueError("OPENAI_API_KEY is not set")
 
+    try:
+        from openai import OpenAI
+    except ImportError as exc:
+        raise RuntimeError("openai package is not installed") from exc
+
     return OpenAI(api_key=api_key)
+
 
 
 def call_openai(system_prompt: str, user_prompt: str, model: str = MODEL_NAME) -> str:
