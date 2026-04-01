@@ -27,7 +27,7 @@ async def unhandled_exception_handler(_: Request, exc: Exception):
     )
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])
-def health():
+def health() -> HealthResponse:
     return HealthResponse
 
 
